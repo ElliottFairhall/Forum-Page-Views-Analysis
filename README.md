@@ -1,5 +1,6 @@
-
 # freecodecamp-data-analysis
+
+[![Streamlit App](https://static.streamlit.io/badges/streamlit_badge_black_white.svg)](elliottfairhall-stock-analysis-tool-main-pgogm7.streamlit.app)
 
 ## Project Overview
 
