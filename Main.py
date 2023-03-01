@@ -22,12 +22,10 @@ csv_file = current_dir / "assets" / "data" / "fcc-forum-pageviews.csv"
 css_file = current_dir / "styles" / "main.css"
 
 # Read the css file and add it to the streamlit application
-st.cache()
 with open(css_file) as f:
     st.markdown("<style>{}</style>".format(f.read()), unsafe_allow_html=True)
 
 # Read the csv file and set the date column as the index
-st.cache()
 df = pd.read_csv(csv_file, parse_dates=["date"], index_col=["date"])
 
 # Remove any outliers from the data by only keeping values within the 2.5 and 97.5 percentiles
