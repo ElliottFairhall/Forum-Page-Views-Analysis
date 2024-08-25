@@ -29,7 +29,7 @@ No specific hardware requirements are needed to run this code.
 
 Copy code
 
-`pip install streamlit pandas seaborn matplotlib pillow` 
+`pip install streamlit pandas seaborn matplotlib pillow`
 
 ## Running Instructions
 
@@ -39,7 +39,7 @@ Copy code
 
 Copy code
 
-`streamlit run filename.py` 
+`streamlit run filename.py`
 
 4.  Open a web browser and navigate to the URL shown in the terminal or command prompt after running the above command.
 
