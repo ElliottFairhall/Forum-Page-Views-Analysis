@@ -1,239 +1,156 @@
-"""
-===================================================
-Filename: text_functions.py
-Created Date: 08-04-2023
-Author: Elliott Fairhall
-Email: elliott@elliottfairhall.dev
-Version: 1.5
-
-Purpose:
---------
-This script is designed to provide an interactive web application using Streamlit
-for visualizing time-series data, specifically FreeCodeCamp forum page views.
-The application allows users to choose different types of plots (line, bar, box)
-and aggregation levels (day, month, year) for the data.
-
-Revision History:
------------------
-08-04-2023: Cleaning code
-05-08-2024: Implemented governance standards
-===================================================
-"""
+# ===================================================
+# Filename: text_functions.py
+# Created Date: 08-04-2023
+# Author: Elliott Fairhall
+# Email: elliott@elliottfairhall.dev
+# Version: 2.0
+#
+# Purpose:
+# --------
+# Streamlit text sections used in the time-series app.
+#
+# Revision History:
+# -----------------
+# 08-04-2023: Cleaning code
+# 05-08-2024: Implemented governance standards
+# 05-09-2025: Content/style cleanup, consistency, DRY
+# ===================================================
 
 import streamlit as st
 
+# --- small helpers ------------------------------------------------------------
 
-# create information related to project outline
+def _section(title: str, body_md: str, level: int = 2):
+    """Render a Markdown section with consistent heading level."""
+    hash_marks = "#" * max(1, min(level, 6))
+    st.markdown(f"{hash_marks} {title}")
+    if body_md.strip():
+        st.markdown(body_md)
+
+def _bullets(items):
+    return "\n".join([f"- {it}" for it in items])
+
+# --- content sections ---------------------------------------------------------
+
 def information_related_to_project_outline():
-    st.markdown(
+    _section(
+        "Project Overview",
         """
-    <h2>Project Overview</h2>
-    <p>This project aims to visualise the daily page views of the freeCodeCamp
-    forum over a period of time, from May 2016 to December 2019. The data has
-    already been provided and will be read from a csv file.
-    The project will show information analysed in three different chart types,
-    line chart, bar chart and box and whisker chart.
-    The line chart will show the daily page views over time,
-    the bar chart will show the average monthly page views
-    for each year, and the box and whisker plot will show the trend
-    of page views over the years and seasonality of page views over the months.</p>
-    """,
-        unsafe_allow_html=True,
+This project visualizes **daily page views** on the **freeCodeCamp Forum** from May 2016 to December 2019.
+
+You can explore the data with three chart types:
+
+- **Line chart** – daily views over time (good for overall trend and changes).
+- **Bar chart** – average **monthly** views per year (good for comparing seasonality across years).
+- **Box & whisker** – distribution by **year** (trend) and by **month** (seasonality).
+
+The dataset is loaded from CSV and lightly cleaned (e.g., outlier clipping) for clearer visuals.
+        """,
+        level=2,
     )
 
 
-# information on time-series data
 def time_series_data_summary():
-    st.markdown(
+    _section(
+        "Time-Series Data Summary",
         """
-    <h2>Time-Series Data Summary</h2>
-    <p>The data provided below is a time series of daily page views on freecodecamp.
-    Each row represents a day, and the first column is the date in the format
-    yyyy-mm-ddT00:00:00 and the second column is the number of page views on
-    that date.</p>
-    <p>This time series data can be used to gain insights into the website's
-    audience and performance. By analysing the page views over time, we can
-    identify trends in the website's popularity and usage.
-    For example, we can see if there are any patterns in the
-    page views over the course of a week, month, or year.
-    We can also see if there are any spikes or dips in the page views that
-    correspond to specific events or promotions. Additionally,
-    we could group the data by different time periods such as weekdays,
-    weekends or holidays to understand the
-    website's audience behaviour.</p>
-    <p>Furthermore, by comparing the data to external data such as
-    weather or other events happening in the same time period,
-    we might derive insights about how these external factors
-    affect the website's page views.</p>
-    """,
-        unsafe_allow_html=True,
+The dataset is a **daily time series** with two columns:
+
+- `date` — ISO-like date string (e.g., `YYYY-MM-DDT00:00:00`)
+- `value` — number of page views for that day
+
+Typical analyses include trend and seasonality detection, spotting spikes/dips (events, releases, promotions), and grouping by periods (weekdays, months, holidays). You can also compare against external drivers (e.g., campaigns or macro events) to understand impact on traffic.
+        """,
+        level=2,
     )
 
 
-# information on time-series data
 def information_on_time_series_data():
-    st.markdown(
+    _section(
+        "Chart Type",
         """
-    <h2>Chart Type</h2>
-    <p>Please use the dropdowns provided below to select the type of chart you
-    would like to see, as well as see information on the benefits and
-    limitations of using that respective chart in context of the project
-    with the visualisations based on Forum Page Vews.</p>
-    <p>You are also able to agggregate the data by day, month or year,
-    this will adjust the interactive chart provided below the inital example.</p>
-    """,
-        unsafe_allow_html=True,
+Use the controls to pick a **chart** and an **aggregation** level (**day**, **month**, **year**).  
+The interactive example below the static chart reflects your selections and is intended to help compare periods cleanly.
+        """,
+        level=2,
     )
 
 
-# show line chart information
 def show_line_chart_information():
-    st.markdown(
-        """
-    <h2>Line Plots</h2>
-    <ul>
-        <li>1. Line charts are a simple and effective way to visualize
-        time-series data and identify trends over time.</li>
-        <li>2. They are particularly useful for showing patterns such as
-        seasonality, long-term trends and abrupt changes in the data.</li>
-        <li>3. Line charts are easy to read and interpret, making
-        them a popular choice for visualizing time-series data.</li>
-    </ul>
-    <h3>Limitations</h3>
-    <p>Line charts are not suitable for showing the distribution of the
-    data and can be misleading if the data points are too dense.</p>
-    """,
-        unsafe_allow_html=True,
+    _section(
+        "Line Charts",
+        _bullets([
+            "Great for showing **trend**, **seasonality**, and **level shifts** over time.",
+            "Easy to read when sampling is regular (daily) and density is reasonable.",
+            "Overlaying a rolling mean can clarify trend without hiding variability.",
+        ])
+        + """
+
+**Limitations**
+
+- Less effective for showing **distribution**; dense series can look cluttered.
+        """,
+        level=2,
     )
 
 
-# show bar chart information
 def show_bar_chart_information():
-    st.markdown(
-        """
-    <h2>Bar Charts</h2>
-    <ul>
-        <li>1. Bar charts are a simple and effective way to visualize
-        time-series data and identify trends over time by comparing
-        different categories or groups of data.</li>
-        <li>2. They are particularly useful for displaying and comparing
-        data that is categorical or discrete, such as the number of items
-        sold in different months, or the number of students in different
-        grade levels.</li>
-        <li>3. Bar charts can be used to compare data over time, across
-        different groups, or in different geographic regions, making them
-        a valuable tool for data analysis and decision-making.</li>
-    </ul>
-    <h3>Limitations</h3>
-    <p>Bar charts can be misleading when the data is not evenly spaced
-    or when the y-axis is not starting at 0</p>
-    """,
-        unsafe_allow_html=True,
+    _section(
+        "Bar Charts",
+        _bullets([
+            "Useful for comparing **aggregated** values (e.g., average monthly views) across **years**.",
+            "Highlights **seasonal patterns** by month when grouped by year.",
+            "Good for presentations where exact distributions are less important than comparisons.",
+        ])
+        + """
+
+**Limitations**
+
+- Can mislead if the y-axis doesn’t start at 0 or if bars represent irregular time spans.
+        """,
+        level=2,
     )
 
 
-# show box chart information
+def _boxplot_shared_body():
+    return """
+**What it shows**
+
+- The distribution by **year** (long-term trend) and by **month** (seasonality).
+- **Median**, **IQR**, and **outliers**, helping you spot unusual periods quickly.
+
+**Why it helps**
+
+- Disentangles trend vs seasonality without committing to a specific model.
+- Robust to extreme values compared with mean-based summaries.
+    """
+
+
 def show_box_chart_information():
-    st.markdown(
-        """
-    <p>Box and whisker plots, also known as box plots, are a useful tool for
-    visualizing the distribution of a dataset.
-    They are particularly useful when working with large datasets or when
-    you want to compare multiple sets of data at once.
-    Box plots show the distribution of a dataset based on five key number
-    summary: minimum, first quartile, median, third quartile,
-    and maximum.</p>
-    <p>When working with time-series data, box plots are particularly
-    useful because they allow you to easily identify outliers and patterns
-    in the data. For example, if you have a dataset of daily page views for a
-    website, you can use a box plot to quickly see if there are any days that
-    have significantly more or less page views than the others.
-    Additionally, by grouping the data by different time periods, such as weekdays or
-    months, you can identify patterns in the data that may not be
-    immediately apparent.</p>
-    <p>Another benefit of using box plots with time-series data is that
-    they are not affected by the scale of the data. This means that you
-    can easily compare datasets that have different units or ranges without
-    having to normalize the data first. This makes box plots a useful
-    tool for quickly identifying patterns and trends in large and
-    complex datasets.</p>
-    """,
-        unsafe_allow_html=True,
-    )
+    # Backward-compatible name retained, content de-duplicated & corrected
+    _section("Box & Whisker Plots", _boxplot_shared_body(), level=2)
 
 
-# show interactive line chart title
-def interactive_line_chart_title():
-    st.markdown(
-        """
-        <h1>Interactive Line Chart</h1>
-    """,
-        unsafe_allow_html=True,
-    )
-
-
-# show static bar chart title
-def static_bar_chart_title():
-    st.markdown(
-        """
-        <h1>Reasons for using Bar Charts with Time-series Data</h1>
-    """,
-        unsafe_allow_html=True,
-    )
-
-
-# show box chart title
-def box_chart_title():
-    st.markdown(
-        """
-        <h1>Reasons for Using Box and Whisker Plots with Time-Series Data</h1>
-    """,
-        unsafe_allow_html=True,
-    )
-
-
-# show interactive line chart title
-def interactive_bar_chart_title():
-    st.markdown(
-        """
-        <h1>Interactive Bar Chart</h1>
-    """,
-        unsafe_allow_html=True,
-    )
-
-
-# show box chart information
 def box_chart_information():
-    st.markdown(
-        """
-    <p>Box and whisker plots, also known as box plots, are a useful
-    tool for visualizing the distribution of a dataset.
-    They are particularly useful when working with large datasets or
-    when you want to compare multiple sets of data at once.
-    Box plots show the distribution of a dataset based on five key number
-    summary: minimum, first quartile, median, third quartile, and maximum.</p>
-    <p>When working with time-series data, box plots are particularly useful
-    because they allow you to easily identify outliers and patterns in the data.
-    For example, if you have a dataset of daily pagenviews for a website, you
-    can use a box plot to quickly see if there are any days that have significantly
-    more or less page views than the others. Additionally, by grouping the data
-    by different time periods, such as weekdays or months, you can identify patterns
-    in the data that may not be immediately apparent.</p>
-    <p>Another benefit of using box plots with time-series data is that they are
-    not affected by the scale of the data. This means that you can easily
-    compare datasets that have different units or ranges without having to
-    normalize the data first. This makes box plots a useful tool for quickly
-    identifying patterns and trends in large and complex datasets.</p>
-    """,
-        unsafe_allow_html=True,
-    )
+    # This previously duplicated similar content; keep alias for compatibility.
+    show_box_chart_information()
 
 
-# line chart time-series title
+def interactive_line_chart_title():
+    _section("Interactive Line Chart", "", level=1)
+
+
+def static_bar_chart_title():
+    _section("Reasons for Using Bar Charts with Time-Series Data", "", level=1)
+
+
+def box_chart_title():
+    _section("Reasons for Using Box & Whisker Plots with Time-Series Data", "", level=1)
+
+
+def interactive_bar_chart_title():
+    _section("Interactive Bar Chart", "", level=1)
+
+
 def line_chart_time_series_title():
-    st.markdown(
-        """
-    <h1>Reasons for using Line Charts with Time-Series Data</h1>
-    """,
-        unsafe_allow_html=True,
-    )
+    _section("Reasons for Using Line Charts with Time-Series Data", "", level=1)
