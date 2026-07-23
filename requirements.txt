@@ -13,4 +13,4 @@ scipy>=1.11.0,<2.0.0
 statsmodels>=0.14.0,<1.0.0
 
 # Image handling
-pillow>=10.0.0,<11.0.0
+pillow>=12.3.0,<13.0.0
