@@ -1,16 +1,6 @@
-# Core dependencies
-streamlit>=1.32.0,<2.0.0
-pandas>=2.0.0,<3.0.0
-numpy>=1.24.0,<2.0.0
-
-# Visualization
-plotly>=5.18.0,<6.0.0
-matplotlib>=3.8.0,<4.0.0
-seaborn>=0.13.0,<1.0.0
-
-# Analytics
-scipy>=1.11.0,<2.0.0
-statsmodels>=0.14.0,<1.0.0
-
-# Image handling
-pillow>=12.3.0,<13.0.0
+streamlit>=1.66.1
+pandas>=3.1.0
+numpy>=2.4.0
+plotly>=7.1.0
+scipy>=1.17.0
+Pillow>=13.0.0

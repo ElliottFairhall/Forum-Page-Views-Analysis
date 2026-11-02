@@ -1,463 +1,289 @@
-"""Visualization functions for the Intelligence Flux dashboard.
+"""Plotly figures for the page views explorer, in the Data Flakes style."""
 
-This module provides themed Plotly chart functions with a consistent
-high-fidelity aesthetic (soft rose and sky color palette).
-"""
+from __future__ import annotations
 
 import pandas as pd
-import plotly.express as px
 import plotly.graph_objects as go
+from plotly.subplots import make_subplots
 
-# High-Fidelity Color Palette (V3)
-COLORS: dict[str, str] = {
-    "background": "#0f172a",
-    "foreground": "#f8fafc",
-    "primary": "#fda4af",  # Rose 300
-    "secondary": "#7dd3fc",  # Sky 300
-    "grid": "rgba(255, 255, 255, 0.05)",
-    "muted": "rgba(148, 163, 184, 0.2)",
-    "accent": "#f0abfc",  # Fuchsia 300
-}
+from utils.analytics import month_heatmap, weekday_profile
+
+PRIMARY = "#5E8FBA"
+ACCENT = "#F67280"
+PLUM = "#C06C84"
+PEACH = "#F8B195"
+SEQUENCE = [PRIMARY, PLUM, PEACH, "#6C5B7B", ACCENT, "#355C7D"]
+DEVICE_COLOURS = {"Desktop": PRIMARY, "Mobile": PLUM, "Tablet": PEACH}
+FONT = {"family": "Inter, sans-serif", "size": 13}
+GRID = "rgba(128,128,128,0.18)"
+MONTHS = [
+    "Jan",
+    "Feb",
+    "Mar",
+    "Apr",
+    "May",
+    "Jun",
+    "Jul",
+    "Aug",
+    "Sep",
+    "Oct",
+    "Nov",
+    "Dec",
+]
+SMOOTH_DAYS = 7
 
 
-def _apply_theme(fig: go.Figure, title_size: int = 24) -> go.Figure:
-    """Apply the soft high-fidelity theme to a Plotly figure.
+def _style(fig: go.Figure, height: int = 360) -> go.Figure:
+    """Apply the shared layout: transparent, light grid, Inter text."""
+    fig.update_layout(
+        height=height,
+        margin={"t": 8, "b": 8, "l": 8, "r": 8},
+        font=FONT,
+        plot_bgcolor="rgba(0,0,0,0)",
+        paper_bgcolor="rgba(0,0,0,0)",
+    )
+    fig.update_xaxes(gridcolor=GRID, zeroline=False)
+    fig.update_yaxes(gridcolor=GRID, zeroline=False)
+    return fig
 
-    Configures consistent styling including dark background, custom fonts,
-    hover labels, and axis formatting.
+
+def trend_figure(
+    series: pd.DataFrame,
+    smooth: bool,
+    anomalies: pd.DataFrame | None,
+    unit: str,
+) -> go.Figure:
+    """Line chart of page views over time.
 
     Args:
-        fig: Plotly Figure object to style.
-        title_size: Font size for the chart title. Default is 24.
+        series: Columns ``date`` and ``pageviews`` from ``resample_views``.
+        smooth: Draw a 7-day average over the raw daily line (daily data only).
+        anomalies: Flagged days to mark, or None.
+        unit: ``"day"``, ``"week"`` or ``"month"``, used in the hover text.
 
     Returns:
-        The styled Figure object (modified in place).
+        The figure.
     """
-    fig.update_layout(
-        template="plotly_dark",
-        paper_bgcolor="rgba(0,0,0,0)",
-        plot_bgcolor="rgba(0,0,0,0)",
-        font_color=COLORS["foreground"],
-        font_family="Inter",
-        hoverlabel={
-            "bgcolor": "#1e293b",
-            "font_size": 14,
-            "font_family": "Inter",
-            "bordercolor": COLORS["secondary"],
-        },
-        margin={"l": 50, "r": 50, "t": 100, "b": 50},
-        xaxis={
-            "gridcolor": COLORS["grid"],
-            "zerolinecolor": COLORS["grid"],
-            "showgrid": False,
-            "tickfont": {
-                "family": "Inter",
-                "size": 12,
-                "color": "rgba(248,250,252,0.5)",
-            },
-        },
-        yaxis={
-            "gridcolor": COLORS["grid"],
-            "zerolinecolor": COLORS["grid"],
-            "showgrid": True,
-            "tickprefix": " ",
-            "tickfont": {
-                "family": "Inter",
-                "size": 12,
-                "color": "rgba(248,250,252,0.5)",
-            },
-        },
-        title={
-            "font": {
-                "size": title_size,
-                "color": COLORS["foreground"],
-                "family": "Outfit",
-            },
-            "x": 0.02,
-            "y": 0.95,
-        },
-        legend={"font": {"family": "Inter", "size": 12}, "bgcolor": "rgba(0,0,0,0)"},
+    fig = go.Figure()
+    raw_colour = "rgba(94,143,186,0.35)" if smooth else PRIMARY
+    fig.add_scatter(
+        x=series["date"],
+        y=series["pageviews"],
+        name=f"Per {unit}",
+        mode="lines",
+        line={"color": raw_colour, "width": 1.5 if smooth else 2.5},
+        hovertemplate="%{y:,.0f}",
+    )
+    if smooth:
+        average = series["pageviews"].rolling(SMOOTH_DAYS, min_periods=1).mean()
+        fig.add_scatter(
+            x=series["date"],
+            y=average,
+            name=f"{SMOOTH_DAYS}-day average",
+            mode="lines",
+            line={"color": PRIMARY, "width": 2.5},
+            hovertemplate="%{y:,.0f}",
+        )
+    if anomalies is not None and not anomalies.empty:
+        fig.add_scatter(
+            x=anomalies["date"],
+            y=anomalies["pageviews"],
+            name="Unusual day",
+            mode="markers",
+            marker={"color": ACCENT, "size": 9, "line": {"width": 1, "color": "white"}},
+            hovertemplate="%{y:,.0f}",
+        )
+    _style(fig, 400)
+    fig.update_layout(hovermode="x unified", legend={"orientation": "h", "y": 1.1})
+    fig.update_yaxes(title="Page views")
+    return fig
+
+
+def top_countries_figure(df: pd.DataFrame, limit: int = 10) -> go.Figure:
+    """Horizontal bars of the countries with the most page views.
+
+    Args:
+        df: Traffic data.
+        limit: How many countries to show.
+
+    Returns:
+        The figure.
+    """
+    totals = df.groupby("country")["pageviews"].sum().nlargest(limit)
+    share = totals / df["pageviews"].sum() * 100
+    fig = go.Figure(
+        go.Bar(
+            x=totals.values,
+            y=totals.index,
+            orientation="h",
+            marker_color=PRIMARY,
+            text=[f"{s:.0f}%" for s in share],
+            textposition="outside",
+            cliponaxis=False,
+            hovertemplate="%{x:,.0f} page views<extra></extra>",
+        )
+    )
+    _style(fig, 60 + 32 * len(totals))
+    fig.update_layout(margin={"t": 8, "b": 8, "l": 8, "r": 40})
+    fig.update_yaxes(autorange="reversed")
+    fig.update_xaxes(title="Page views")
+    return fig
+
+
+def share_figure(df: pd.DataFrame, column: str) -> go.Figure:
+    """Horizontal bars of each segment's share of page views.
+
+    Args:
+        df: Traffic data.
+        column: ``"device"`` or ``"region"``.
+
+    Returns:
+        The figure.
+    """
+    totals = df.groupby(column)["pageviews"].sum().sort_values(ascending=False)
+    share = totals / totals.sum() * 100
+    colours = [DEVICE_COLOURS.get(name, PRIMARY) for name in totals.index]
+    fig = go.Figure(
+        go.Bar(
+            x=share.values,
+            y=share.index,
+            orientation="h",
+            marker_color=colours,
+            text=[f"{s:.0f}%" for s in share],
+            textposition="outside",
+            cliponaxis=False,
+            hovertemplate="%{x:.1f}% of page views<extra></extra>",
+        )
+    )
+    _style(fig, 60 + 40 * len(totals))
+    fig.update_layout(margin={"t": 8, "b": 8, "l": 8, "r": 40})
+    fig.update_xaxes(range=[0, max(share.max() * 1.2, 10)], ticksuffix="%")
+    fig.update_yaxes(autorange="reversed")
+    return fig
+
+
+def map_figure(df: pd.DataFrame) -> go.Figure:
+    """World map shaded by page views per country.
+
+    Args:
+        df: Traffic data with an ``iso_code`` column.
+
+    Returns:
+        The figure.
+    """
+    totals = df.groupby(["iso_code", "country"])["pageviews"].sum().reset_index()
+    fig = go.Figure(
+        go.Choropleth(
+            locations=totals["iso_code"],
+            z=totals["pageviews"],
+            zmin=0,
+            text=totals["country"],
+            colorscale=[[0, "#DCE6F0"], [0.5, PRIMARY], [1, "#355C7D"]],
+            marker_line_color="rgba(128,128,128,0.4)",
+            marker_line_width=0.5,
+            colorbar={"title": "Page views", "thickness": 12},
+            hovertemplate="%{text}: %{z:,.0f}<extra></extra>",
+        )
+    )
+    _style(fig, 420)
+    fig.update_geos(
+        showframe=False,
+        showcoastlines=False,
+        bgcolor="rgba(0,0,0,0)",
+        projection_type="natural earth",
+        landcolor="rgba(128,128,128,0.12)",
+        showland=True,
     )
     return fig
 
 
-def draw_line_plot(df: pd.DataFrame) -> go.Figure:
-    """Draw a premium line plot of Impression Flux (daily pageviews).
-
-    Creates a time series visualization showing aggregate daily pageviews
-    with a smooth rose-colored line.
+def weekday_figure(df: pd.DataFrame) -> go.Figure:
+    """Bars of average daily page views for each day of the week.
 
     Args:
-        df: DataFrame with 'date' and 'pageviews' columns.
+        df: Traffic data.
 
     Returns:
-        Themed Plotly Figure with the line chart.
-
-    Example:
-        >>> fig = draw_line_plot(traffic_df)
-        >>> st.plotly_chart(fig, use_container_width=True)
+        The figure.
     """
-    daily_df = df.groupby("date")["pageviews"].sum().reset_index()
-    fig = px.line(
-        daily_df,
-        x="date",
-        y="pageviews",
-        title="Impression Flux",
-        labels={"date": "Timeline", "pageviews": "Aggregate Impressions"},
-        color_discrete_sequence=[COLORS["primary"]],
+    profile = weekday_profile(df)
+    fig = go.Figure(
+        go.Bar(
+            x=profile["weekday"],
+            y=profile["pageviews"],
+            marker_color=PRIMARY,
+            hovertemplate="%{y:,.0f} a day<extra></extra>",
+        )
     )
-    fig.update_traces(line={"width": 2.5})
-    return _apply_theme(fig)
+    _style(fig, 320)
+    fig.update_yaxes(title="Average page views per day")
+    return fig
 
 
-def draw_bar_plot(df: pd.DataFrame) -> go.Figure:
-    """Draw a premium bar plot of Cyclical Variance (seasonality).
-
-    Creates a grouped bar chart showing average monthly pageviews by year
-    to reveal seasonal patterns.
+def heatmap_figure(df: pd.DataFrame) -> go.Figure:
+    """Heatmap of page views by year and calendar month.
 
     Args:
-        df: DataFrame with 'date' and 'pageviews' columns.
+        df: Traffic data.
 
     Returns:
-        Themed Plotly Figure with the grouped bar chart.
-
-    Example:
-        >>> fig = draw_bar_plot(traffic_df)
-        >>> st.plotly_chart(fig, use_container_width=True)
+        The figure.
     """
-    df_bar = df.copy()
-    df_bar["year"] = df_bar["date"].dt.year
-    df_bar["month"] = df_bar["date"].dt.month_name()
-    monthly_avg = df_bar.groupby(["year", "month"])["pageviews"].mean().reset_index()
-    month_order = [
-        "January",
-        "February",
-        "March",
-        "April",
-        "May",
-        "June",
-        "July",
-        "August",
-        "September",
-        "October",
-        "November",
-        "December",
-    ]
-
-    fig = px.bar(
-        monthly_avg,
-        x="month",
-        y="pageviews",
-        color="year",
-        barmode="group",
-        category_orders={"month": month_order},
-        title="Cyclical Variance (Seasonal Distribution)",
-        labels={
-            "pageviews": "Avg Daily Impressions",
-            "month": "Period",
-            "year": "Year",
-        },
-        color_discrete_sequence=[
-            COLORS["primary"],
-            COLORS["secondary"],
-            COLORS["accent"],
-        ],
+    pivot = month_heatmap(df)
+    fig = go.Figure(
+        go.Heatmap(
+            z=pivot.values,
+            x=MONTHS,
+            y=[str(year) for year in pivot.index],
+            colorscale=[[0, "#EEF3F8"], [0.5, PRIMARY], [1, "#355C7D"]],
+            colorbar={"title": "Page views", "thickness": 12},
+            hovertemplate="%{y} %{x}: %{z:,.0f}<extra></extra>",
+        )
     )
-    return _apply_theme(fig)
+    _style(fig, 80 + 34 * len(pivot))
+    fig.update_yaxes(autorange="reversed", showgrid=False)
+    fig.update_xaxes(showgrid=False)
+    return fig
 
 
-def draw_box_plot(df: pd.DataFrame) -> tuple[go.Figure, go.Figure]:
-    """Draw premium Evolutionary Variance box plots (annual and monthly).
-
-    Creates two box plots showing pageview distribution by year and by month
-    to visualize statistical spread over time.
+def engagement_figure(df: pd.DataFrame) -> go.Figure:
+    """Monthly session length and bounce rate, stacked.
 
     Args:
-        df: DataFrame with 'date' and 'pageviews' columns.
+        df: Traffic data.
 
     Returns:
-        Tuple of two themed Plotly Figures:
-            - Annual box plot (by year)
-            - Monthly box plot (by month abbreviation)
-
-    Example:
-        >>> fig_year, fig_month = draw_box_plot(traffic_df)
-        >>> st.plotly_chart(fig_year)
-        >>> st.plotly_chart(fig_month)
+        The figure.
     """
-    df_box = df.copy()
-    df_box["year"] = df_box["date"].dt.year
-    df_box["month"] = df_box["date"].dt.strftime("%b")
-    month_order = [
-        "Jan",
-        "Feb",
-        "Mar",
-        "Apr",
-        "May",
-        "Jun",
-        "Jul",
-        "Aug",
-        "Sep",
-        "Oct",
-        "Nov",
-        "Dec",
-    ]
-
-    fig1 = px.box(
-        df_box,
-        x="year",
-        y="pageviews",
-        title="Evolutionary Variance (Annual)",
-        color_discrete_sequence=[COLORS["primary"]],
-    )
-    fig2 = px.box(
-        df_box,
-        x="month",
-        y="pageviews",
-        category_orders={"month": month_order},
-        title="Evolutionary Variance (Monthly)",
-        color_discrete_sequence=[COLORS["secondary"]],
-    )
-    return _apply_theme(fig1), _apply_theme(fig2)
-
-
-def draw_geo_distribution(df: pd.DataFrame) -> go.Figure:
-    """Draw Source Concentration horizontal bar plot (top countries).
-
-    Creates a horizontal bar chart showing the top 10 countries by
-    total pageviews.
-
-    Args:
-        df: DataFrame with 'country' and 'pageviews' columns.
-
-    Returns:
-        Themed Plotly Figure with the horizontal bar chart.
-
-    Example:
-        >>> fig = draw_geo_distribution(traffic_df)
-        >>> st.plotly_chart(fig, use_container_width=True)
-    """
-    geo_df = (
-        df.groupby("country")["pageviews"]
-        .sum()
-        .reset_index()
-        .sort_values("pageviews", ascending=True)
-        .tail(10)
-    )
-    fig = px.bar(
-        geo_df,
-        x="pageviews",
-        y="country",
-        orientation="h",
-        title="Source Concentration (Primary Locale)",
-        labels={"pageviews": "Total Volume", "country": "Locale"},
-        color_discrete_sequence=[COLORS["secondary"]],
-    )
-    return _apply_theme(fig)
-
-
-def draw_regional_map(df: pd.DataFrame) -> go.Figure:
-    """Draw an interactive Global Reach choropleth map.
-
-    Creates a world map colored by pageview volume per country,
-    using natural earth projection.
-
-    Args:
-        df: DataFrame with 'country', 'iso_code', and 'pageviews' columns.
-
-    Returns:
-        Themed Plotly Figure with the choropleth map.
-
-    Example:
-        >>> fig = draw_regional_map(traffic_df)
-        >>> st.plotly_chart(fig, use_container_width=True)
-    """
-    geo_df = df.groupby(["country", "iso_code"])["pageviews"].sum().reset_index()
-    fig = px.choropleth(
-        geo_df,
-        locations="iso_code",
-        locationmode="ISO-3",
-        color="pageviews",
-        hover_name="country",
-        title="Global Reach Index",
-        color_continuous_scale=[
-            [0, "#1e293b"],
-            [0.5, COLORS["secondary"]],
-            [1, COLORS["primary"]],
-        ],
-        height=700,
-    )
-    fig.update_geos(
-        showcountries=True,
-        countrycolor="rgba(255,255,255,0.1)",
-        showcoastlines=True,
-        coastlinecolor="rgba(255,255,255,0.1)",
-        showland=True,
-        landcolor="#1e293b",
-        showocean=True,
-        oceancolor="#0f172a",
-        bgcolor="rgba(0,0,0,0)",
-        projection_type="natural earth",
-    )
-    fig.update_layout(
-        coloraxis_colorbar={"title": "Volume", "thickness": 15, "len": 0.5}
-    )
-    return _apply_theme(fig)
-
-
-def draw_device_breakdown(df: pd.DataFrame) -> go.Figure:
-    """Draw Interface Matrix donut chart (device distribution).
-
-    Creates a donut chart showing pageview distribution by device type
-    (Desktop, Mobile, Tablet).
-
-    Args:
-        df: DataFrame with 'device' and 'pageviews' columns.
-
-    Returns:
-        Themed Plotly Figure with the donut chart.
-
-    Example:
-        >>> fig = draw_device_breakdown(traffic_df)
-        >>> st.plotly_chart(fig, use_container_width=True)
-    """
-    dev_df = df.groupby("device")["pageviews"].sum().reset_index()
-    fig = px.pie(
-        dev_df,
-        values="pageviews",
-        names="device",
-        hole=0.7,
-        title="Interface Matrix",
-        color_discrete_sequence=[
-            COLORS["primary"],
-            COLORS["secondary"],
-            COLORS["accent"],
-        ],
-    )
-    fig.update_traces(marker={"line": {"color": COLORS["background"], "width": 2}})
-    return _apply_theme(fig)
-
-
-def draw_engagement_metrics(df: pd.DataFrame) -> go.Figure:
-    """Draw User Flux Dynamics dual-axis chart with moving averages.
-
-    Creates a time series with session duration and bounce rate,
-    showing both raw daily values (faded) and 7-day moving averages.
-
-    Args:
-        df: DataFrame with 'date', 'session_duration', and 'bounce_rate' columns.
-
-    Returns:
-        Themed Plotly Figure with dual y-axes.
-
-    Example:
-        >>> fig = draw_engagement_metrics(traffic_df)
-        >>> st.plotly_chart(fig, use_container_width=True)
-    """
-    eng_df = (
-        df.groupby("date")
+    monthly = (
+        df.set_index("date")
+        .resample("MS")
         .agg({"session_duration": "mean", "bounce_rate": "mean"})
-        .reset_index()
+        .dropna()
     )
-    # Apply 7-day moving average to reduce noise
-    eng_df["duration_ma"] = eng_df["session_duration"].rolling(window=7).mean()
-    eng_df["bounce_ma"] = eng_df["bounce_rate"].rolling(window=7).mean()
-
-    fig = go.Figure()
-
-    # Raw daily data (faded)
-    fig.add_trace(
-        go.Scatter(
-            x=eng_df["date"],
-            y=eng_df["session_duration"],
-            name="Duration (Daily)",
-            line={"color": COLORS["primary"], "width": 1},
-            opacity=0.3,
-        )
+    fig = make_subplots(rows=2, cols=1, shared_xaxes=True, vertical_spacing=0.1)
+    fig.add_scatter(
+        x=monthly.index,
+        y=monthly["session_duration"],
+        name="Session length",
+        mode="lines",
+        line={"color": PRIMARY, "width": 2.5},
+        hovertemplate="%{y:.0f} s",
+        row=1,
+        col=1,
     )
-    fig.add_trace(
-        go.Scatter(
-            x=eng_df["date"],
-            y=eng_df["bounce_rate"],
-            name="Bounce Index (Daily)",
-            yaxis="y2",
-            line={"color": COLORS["secondary"], "width": 1},
-            opacity=0.3,
-        )
+    fig.add_scatter(
+        x=monthly.index,
+        y=monthly["bounce_rate"] * 100,
+        name="Bounce rate",
+        mode="lines",
+        line={"color": ACCENT, "width": 2.5},
+        hovertemplate="%{y:.1f}%",
+        row=2,
+        col=1,
     )
-
-    # Moving averages (stronger lines)
-    fig.add_trace(
-        go.Scatter(
-            x=eng_df["date"],
-            y=eng_df["duration_ma"],
-            name="Duration (7d Trend)",
-            line={"color": COLORS["primary"], "width": 3},
-        )
-    )
-    fig.add_trace(
-        go.Scatter(
-            x=eng_df["date"],
-            y=eng_df["bounce_ma"],
-            name="Bounce Index (7d Trend)",
-            yaxis="y2",
-            line={"color": COLORS["secondary"], "width": 3},
-        )
-    )
-
-    fig.update_layout(
-        title="User Flux Dynamics (Smooth Correlation)",
-        yaxis={"title": "Stay Duration (s)", "range": [0, 200]},
-        yaxis2={
-            "title": "Bounce Index (%)",
-            "overlaying": "y",
-            "side": "right",
-            "range": [0, 1],
-            "showgrid": False,
-        },
-    )
-    return _apply_theme(fig)
-
-
-def draw_anomaly_highlight(df: pd.DataFrame, anomalies: pd.DataFrame) -> go.Figure:
-    """Draw Signal Intelligence plot highlighting anomalous days.
-
-    Creates a line chart with star markers on days identified as
-    statistical outliers.
-
-    Args:
-        df: DataFrame with 'date' and 'pageviews' columns.
-        anomalies: DataFrame of anomalous days (from detect_anomalies).
-
-    Returns:
-        Themed Plotly Figure with anomaly markers.
-
-    Example:
-        >>> anomalies = detect_anomalies(traffic_df)
-        >>> fig = draw_anomaly_highlight(traffic_df, anomalies)
-        >>> st.plotly_chart(fig, use_container_width=True)
-    """
-    daily_df = df.groupby("date")["pageviews"].sum().reset_index()
-    fig = px.line(
-        daily_df,
-        x="date",
-        y="pageviews",
-        title="Signal Intelligence (Critical Outliers)",
-        color_discrete_sequence=[COLORS["muted"]],
-    )
-    fig.add_trace(
-        go.Scatter(
-            x=anomalies["date"],
-            y=anomalies["pageviews"],
-            mode="markers",
-            name="Critical Outlier",
-            marker={
-                "color": COLORS["primary"],
-                "size": 12,
-                "symbol": "star",
-                "line": {"width": 1, "color": "white"},
-            },
-        )
-    )
-    return _apply_theme(fig)
+    _style(fig, 440)
+    fig.update_layout(hovermode="x unified", showlegend=False)
+    fig.update_yaxes(title="Session length (s)", row=1, col=1)
+    fig.update_yaxes(title="Bounce rate (%)", row=2, col=1)
+    return fig

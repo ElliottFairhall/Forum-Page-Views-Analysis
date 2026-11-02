@@ -1,36 +1,24 @@
-"""Utility modules for the Intelligence Flux dashboard.
+"""Helper modules for the page views explorer.
 
-This package contains modules for:
-- analytics: KPI calculations and anomaly detection
-- data_loader: Data loading and validation
-- plots: Themed Plotly visualizations
-- text: Dashboard text content and guides
+- analytics: filtering, KPIs, comparison periods and anomaly detection
+- data_loader: loading and validating the CSV
+- plots: Plotly figures in the Data Flakes style
+- layout: Streamlit page sections
+- text: long-form guide text from the earlier version of the app
 """
 
-from utils.analytics import detect_anomalies, get_audience_breakdown, get_kpis
-from utils.data_loader import load_source_data
-from utils.plots import (
-    draw_anomaly_highlight,
-    draw_bar_plot,
-    draw_box_plot,
-    draw_device_breakdown,
-    draw_engagement_metrics,
-    draw_geo_distribution,
-    draw_line_plot,
-    draw_regional_map,
+from utils.analytics import (
+    detect_anomalies,
+    get_audience_breakdown,
+    get_kpis,
+    rolling_anomalies,
 )
+from utils.data_loader import load_source_data
 
 __all__ = [
-    "get_kpis",
     "detect_anomalies",
     "get_audience_breakdown",
+    "get_kpis",
     "load_source_data",
-    "draw_line_plot",
-    "draw_bar_plot",
-    "draw_box_plot",
-    "draw_geo_distribution",
-    "draw_regional_map",
-    "draw_device_breakdown",
-    "draw_engagement_metrics",
-    "draw_anomaly_highlight",
+    "rolling_anomalies",
 ]

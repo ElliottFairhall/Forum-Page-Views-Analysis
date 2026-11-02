@@ -39,7 +39,7 @@ def load_source_data(csv_file: Path | str) -> pd.DataFrame:
     Example:
         >>> from pathlib import Path
         >>> df = load_source_data(Path("assets/data/platform-traffic.csv"))
-        >>> print(f"Loaded {len(df)} records from {df['date'].min()} to {df['date'].max()}")
+        >>> print(len(df), df['date'].min(), df['date'].max())
     """
     csv_path = Path(csv_file)
 
